@@ -6,4 +6,45 @@
 //  Copyright © 2020 Dominic Valencia. All rights reserved.
 //
 
-import Foundation
+import UIKit
+
+public extension UIImageView {
+    func processLink(_ string: String?, _ isNotInverted: Bool = true, _ dispatchGroup: DispatchGroup? = nil, _ complete: (()->())? = nil) {
+        if let string = string, let url = URL(string: string), UIApplication.shared.canOpenURL(url), !string.contains("default") {
+            guard let rest = REST.make(urlString: string) else {
+                print("Bad URL")
+                return
+            }
+
+            rest.get(withDeserializer: ImageDeserializer()) { result, httpResponse in
+                dispatchGroup?.leave()
+                do {
+                    let img = try result.value()
+                    DispatchQueue.main.async {
+                        self.image = isNotInverted ? img : img.invertedImage()
+                    }
+                } catch {
+                    print("Error performing GET: \(error)")
+                }
+            }
+        } else {
+            dispatchGroup?.leave()
+            complete?()
+        }
+    }
+}
+
+extension UIImage {
+    func invertedImage() -> UIImage? {
+        guard let cgImage = self.cgImage else { return nil }
+        let ciImage = CoreImage.CIImage(cgImage: cgImage)
+        guard let filter = CIFilter(name: "CIColorInvert") else { return nil }
+        filter.setDefaults()
+        filter.setValue(ciImage, forKey: kCIInputImageKey)
+        let context = CIContext(options: nil)
+        guard let outputImage = filter.outputImage else { return nil }
+        guard let outputImageCopy = context.createCGImage(outputImage, from: outputImage.extent) else { return nil }
+        return UIImage(cgImage: outputImageCopy, scale: self.scale, orientation: .up)
+    }
+}
+

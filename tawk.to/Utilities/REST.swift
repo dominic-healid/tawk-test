@@ -41,9 +41,6 @@ public struct RestOptions {
     public init() {}
 }
 
-/// Allows users to create HTTP REST networking calls that deal with JSON.
-///
-/// **NOTE:** If running on iOS 9.0+ then ensure to configure `App Transport Security` appropriately.
 public class REST : NSObject, URLSessionDelegate {
 
     fileprivate static let kDefaultRequestTimeout = 60 as TimeInterval
@@ -59,11 +56,6 @@ public class REST : NSObject, URLSessionDelegate {
     private let url: URL
     private var session: URLSession
 
-    /// If set to *true*, then self signed SSL certificates will be accepted from the **SAME** host only.
-    ///
-    /// If you are making a request to *https://foo.com* and you get redirected to *https://bar.com* (where bar.com uses a self signed SSL certificate), then the request will fail; as the SSL host of *bar.com* does not match the intended host of *foo.com*.
-    ///
-    /// **NOTE:** If running on iOS 9.0+ then ensure to configure `App Transport Security` appropriately.
     public var acceptSelfSignedCertificate = false
 
     private init(url: URL) {
@@ -71,11 +63,6 @@ public class REST : NSObject, URLSessionDelegate {
         self.session = Foundation.URLSession.shared
     }
 
-    /// Creates a new `REST` for the given URL endpoint.
-    ///
-    /// **NOTE:** If running on iOS 9.0+ then ensure to configure `App Transport Security` appropriately for the server.
-    /// - parameter urlString: The URL of the server to send requests to.
-    /// - returns: If the given URL string represents a valid `URL`, then a `REST` for the URL will be returned; it not then `nil` will be returned.
     public static func make(urlString: String) -> REST? {
         if let validURL = URL(string: urlString) {
             return make(url: validURL)
@@ -84,11 +71,6 @@ public class REST : NSObject, URLSessionDelegate {
         return nil
     }
 
-    /// Creates a new `REST` for the given URL endpoint.
-    ///
-    /// **NOTE:** If running on iOS 9.0+ then ensure to configure `App Transport Security` appropriately for the server.
-    /// - parameter url: The URL of the server to send requests to.
-    /// - returns: A `REST` for the given URL.
     public static func make(url: URL) -> REST {
         let rest = REST(url: url)
         rest.session = Foundation.URLSession(configuration: URLSessionConfiguration.default, delegate: rest, delegateQueue: nil)
@@ -155,7 +137,8 @@ public class REST : NSObject, URLSessionDelegate {
                 callback(.failure(NetworkingError.noResponse), httpResponse)
                 return
             }
-
+            
+            APIRequestCacheManager.cacheData(returnedData, withKey: self.url.absoluteString)
             callback(.success(returnedData), httpResponse)
         }.resume()
     }
@@ -176,101 +159,39 @@ public class REST : NSObject, URLSessionDelegate {
         }
     }
     
-    /// Performs a GET request to the server, capturing the output of the server using the supplied `Deserializer`.
-    ///
-    /// Note: This is an **asynchronous** call and will return immediately.  The network operation is done in the background.
-    ///
-    /// - parameter responseDeserializer: A `Deserializer` to handle de-serializing the response to.
-    /// - parameter relativePath: An **optional** parameter of a relative path to append to this instance.
-    /// - parameter options: An **optional** parameter of a `RestOptions` struct for this call.
-    /// - parameter callback: Called when the network operation has ended, giving back a Boxed `Result<T.ResponseType>` and a `NSHTTPURLResponse?` representing the response from the server. Note: The callback is **NOT** called on the main thread.
     public func get<T: Deserializer>(withDeserializer responseDeserializer: T, at relativePath: String? = nil, options: RestOptions = RestOptions(), callback: @escaping (Result<T.ResponseType>, HTTPURLResponse?) -> ()) {
-        makeCall(relativePath, httpMethod: REST.kGetType, payload: nil, responseDeserializer: responseDeserializer, options: options, callback: callback)
-    }
+        
+        APIRequestCacheManager.shouldGetCache(self.url.absoluteString) { (isCache, response) in
+            guard let response = response else {
+                self.makeCall(relativePath, httpMethod: REST.kGetType, payload: nil, responseDeserializer: responseDeserializer, options: options, callback: callback)
+                return
+            }
+            do {
 
-    /// Performs a GET request to the server, capturing the data object type response from the server.
-    ///
-    /// Note: This is an **asynchronous** call and will return immediately.  The network operation is done in the background.
-    ///
-    /// - parameter type: The type of object this get call returns. This type must conform to `Decodable`
-    /// - parameter relativePath: An **optional** parameter of a relative path of this inscatnaces main URL as setup at when created.
-    /// - parameter options: An **optional** parameter of a `RestOptions` struct containing any header fields to include with the call or a different expected status code.
-    /// - parameter callback: Called when the network operation has ended, giving back a Boxed `Result<D>` and a `NSHTTPURLResponse?` representing the response from the server. Note: The callback is **NOT** called on the main thread.
+                let transformedResponse = try responseDeserializer.deserialize(response)
+                callback(.success(transformedResponse), nil)
+            } catch {
+                callback(.failure(error), nil)
+            }
+        }
+    }
+    
     public func get<D: Decodable>(_ type: D.Type, at relativePath: String? = nil, options: RestOptions = RestOptions(), callback: @escaping (Result<D>, HTTPURLResponse?) -> ()) {
-        let decodableDeserializer = DecodableDeserializer<D>()
-        makeCall(relativePath, httpMethod: REST.kGetType, payload: nil, responseDeserializer: decodableDeserializer, options: options, callback: callback)
-    }
-
-    /// Performs a POST request to the server, capturing the output of the server using the supplied `Deserializer`.
-    ///
-    /// Note: This is an **asynchronous** call and will return immediately.  The network operation is done in the background.
-    ///
-    /// - parameter json: The JSON body of the request.
-    /// - parameter responseDeserializer: A `Deserializer` to handle de-serializing the response to.
-    /// - parameter relativePath: An **optional** parameter of a relative path to append to this instance.
-    /// - parameter options: An **optional** parameter of a `RestOptions` struct for this call.
-    /// - parameter callback: Called when the network operation has ended, giving back a Boxed `Result<T.ResponseType>` and a `NSHTTPURLResponse?` representing the response from the server. Note: The callback is **NOT** called on the main thread.
-    public func post<T: Deserializer>(_ json: JSON, withDeserializer responseDeserializer: T, at relativePath: String? = nil, options: RestOptions = RestOptions(), callback: @escaping (Result<T.ResponseType>, HTTPURLResponse?) -> ()) {
-        do {
-            let payload = try json.makeData()
-            makeCall(relativePath, httpMethod: REST.kPostType, payload: payload, responseDeserializer: responseDeserializer, options: options, callback: callback)
-        } catch {
-            callback(.failure(error), nil)
-        }
-    }
-
-    /// Performs a POST request to the server, capturing the output of the server using the supplied `Deserializer`.
-    ///
-    /// Note: This is an **asynchronous** call and will return immediately.  The network operation is done in the background.
-    ///
-    /// - parameter encodable: Any object that can be encoded. Must be of type `Encodable`
-    /// - parameter responseDeserializer: A `Deserializer` to handle de-serializing the response to.
-    /// - parameter relativePath: An **optional** parameter of a relative path to append to this instance.
-    /// - parameter options: An **optional** parameter of a `RestOptions` struct for this call.
-    /// - parameter callback: Called when the network operation has ended, giving back a Boxed `Result<T.ResponseType>` and a `NSHTTPURLResponse?` representing the response from the server. Note: The callback is **NOT** called on the main thread.
-    public func post<T: Deserializer, E: Encodable>(_ encodable: E, withDeserializer responseDeserializer: T, at relativePath: String? = nil, options: RestOptions = RestOptions(), callback: @escaping (Result<T.ResponseType>, HTTPURLResponse?) -> ()) {
-        do {
-            let payload = try JSONEncoder().encode(encodable)
-            makeCall(relativePath, httpMethod: REST.kPostType, payload: payload, responseDeserializer: responseDeserializer, options: options, callback: callback)
-        } catch {
-            callback(.failure(error), nil)
-        }
-    }
-
-    /// Performs a POST request to the server, capturing the `JSON` response from the server.
-    ///
-    /// Note: This is an **asynchronous** call and will return immediately.  The network operation is done in the background.
-    ///
-    /// - parameter json: The JSON body of the request.
-    /// - parameter relativePath: An **optional** parameter of a relative path of this inscatnaces main URL as setup at when created.
-    /// - parameter options: An **optional** parameter of a `RestOptions` struct containing any header fields to include with the call or a different expected status code.
-    /// - parameter callback: Called when the network operation has ended, giving back a Boxed `Result<JSON>` and a `NSHTTPURLResponse?` representing the response from the server. Note: The callback is **NOT** called on the main thread.
-    public func post(_ json: JSON, at relativePath: String? = nil, options: RestOptions = RestOptions(), callback: @escaping (Result<JSON>, HTTPURLResponse?) -> ()) {
-        do {
-            let payload = try json.makeData()
-            makeCall(relativePath, httpMethod: REST.kPostType, payload: payload, responseDeserializer: JSONDeserializer(), options: options, callback: callback)
-        } catch {
-            callback(.failure(error), nil)
-        }
-    }
-
-    /// Performs a POST request to the server, capturing the `JSON` response from the server.
-    ///
-    /// Note: This is an **asynchronous** call and will return immediately.  The network operation is done in the background.
-    ///
-    /// - parameter encodable: Any object that can be encoded.
-    /// - parameter relativePath: An **optional** parameter of a relative path of this inscatnaces main URL as setup at when created.
-    /// - parameter responseType: The type of object this get call returns. This type must conform to `Decodable`
-    /// - parameter options: An **optional** parameter of a `RestOptions` struct containing any header fields to include with the call or a different expected status code.
-    /// - parameter callback: Called when the network operation has ended, giving back a Boxed `Result<D>` and a `NSHTTPURLResponse?` representing the response from the server. Note: The callback is **NOT** called on the main thread.
-    public func post<E: Encodable, D: Decodable>(_ encodable: E, at relativePath: String? = nil, responseType type: D.Type, options: RestOptions = RestOptions(), callback: @escaping (Result<D>, HTTPURLResponse?) -> ()) {
-        do {
-            let payload = try JSONEncoder().encode(encodable)
+        APIRequestCacheManager.shouldGetCache(self.url.absoluteString) { (isCache, response) in
             let decodableDeserializer = DecodableDeserializer<D>()
-            makeCall(relativePath, httpMethod: REST.kPostType, payload: payload, responseDeserializer: decodableDeserializer, options: options, callback: callback)
-        } catch {
-            callback(.failure(error), nil)
+            guard let response = response else {
+                self.makeCall(relativePath, httpMethod: REST.kGetType, payload: nil, responseDeserializer: decodableDeserializer, options: options, callback: callback)
+                return
+            }
+            do {
+
+                let transformedResponse = try decodableDeserializer.deserialize(response)
+                callback(.success(transformedResponse), nil)
+            } catch {
+                callback(.failure(error), nil)
+            }
         }
+        
     }
     
 }

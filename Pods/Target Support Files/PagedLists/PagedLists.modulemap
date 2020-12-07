@@ -1,0 +1,6 @@
+framework module PagedLists {
+  umbrella header "PagedLists-umbrella.h"
+
+  export *
+  module * { export * }
+}
