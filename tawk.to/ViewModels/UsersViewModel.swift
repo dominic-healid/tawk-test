@@ -78,11 +78,15 @@ class UsersViewModel: BaseViewModel {
             self.changeResult?(.loadUsers)
         }
     }
+    
+    func resetUsers() {
+        self.users = []
+    }
 
 }
 
 extension UsersViewModel: UserProtocol {
     func getUser(id: Int) -> CDUser? {
-        return self.getUser(id, taskContext: self.getTaskContext())
+        return self.getUser(id, taskContext: self.getMainContext())
     }
 }

@@ -9,15 +9,14 @@
 import UIKit
 
 public extension UIImageView {
-    func processLink(_ string: String?, _ isNotInverted: Bool = true, _ dispatchGroup: DispatchGroup? = nil, _ complete: (()->())? = nil) {
-        if let string = string, let url = URL(string: string), UIApplication.shared.canOpenURL(url), !string.contains("default") {
+    func processLink(_ string: String?, _ isNotInverted: Bool = true, _ complete: (()->())? = nil) {
+        if let string = string {
             guard let rest = REST.make(urlString: string) else {
                 print("Bad URL")
                 return
             }
 
             rest.get(withDeserializer: ImageDeserializer()) { result, httpResponse in
-                dispatchGroup?.leave()
                 do {
                     let img = try result.value()
                     DispatchQueue.main.async {
@@ -28,7 +27,6 @@ public extension UIImageView {
                 }
             }
         } else {
-            dispatchGroup?.leave()
             complete?()
         }
     }

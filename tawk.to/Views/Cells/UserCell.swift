@@ -61,21 +61,18 @@ class UserCell: UITableViewCell {
         // Configure the view for the selected state
     }
     
-    func configure(_ user: User, _ indexPath: IndexPath, _ dispatchGroup: DispatchGroup) {
-        
+    func configure(_ user: User, _ indexPath: IndexPath, _ serialQueue: DispatchQueue) {
         
         if let u = userProtocol?.getUser(id: user.id) {
             self.userName.text = u.login
             self.details.text = u.url
-            self.contentView.backgroundColor = u.seen ? .lightGray : .white
+            self.contentView.backgroundColor = u.seen ? .lightGray : UIColor(named: "tawkWhite")
             self.noteImage.isHidden = u.notes.isEmpty
-            
-            self.contentView.layoutIfNeeded()
-            
         }
         
-        dispatchGroup.enter()
-        pictureView.processLink(user.avatar_url, indexPath.row % 4 != 3, dispatchGroup)
+        serialQueue.async {
+            self.pictureView.processLink(user.avatar_url, indexPath.row % 4 != 3)
+        }
     }
     
     private func setupLayout() {

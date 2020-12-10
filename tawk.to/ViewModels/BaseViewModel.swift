@@ -49,15 +49,16 @@ class BaseViewModel: NSObject, ContentActivityProtocol {
         return taskContext
     }
     
-    @discardableResult
-    func syncUsers(users: [User]) -> Bool {
-        var successfull = false
+    func getMainContext() -> NSManagedObjectContext {
+        return self.persistentContainer.viewContext
+    }
+    
+    func syncUsers(users: [User]) {
         let taskContext = self.getTaskContext()
-        taskContext.performAndWait {
-            
-            // Create new records.
-            for u in users {
-                
+        let serialQueue = DispatchQueue(label: "cd.serial.queue")
+        // Create new records.
+        for u in users {
+            serialQueue.async {
                 guard let user = NSEntityDescription.insertNewObject(forEntityName: "CDUser", into: taskContext) as? CDUser else {
                     print("Error: Failed to create a new CDUser object!")
                     return
@@ -84,27 +85,29 @@ class BaseViewModel: NSObject, ContentActivityProtocol {
                 }
             }
             
-            self.save(taskContext: taskContext)
-            successfull = true
         }
-        return successfull
+        
+        self.save(taskContext: taskContext)
     }
     
     private func save(taskContext: NSManagedObjectContext) {
         // Save all the changes just made and reset the taskContext to free the cache.
-        if taskContext.hasChanges {
-            do {
-                try taskContext.save()
-            } catch {
-                print("Error: \(error)\nCould not save Core Data context.")
+        taskContext.perform {
+            if taskContext.hasChanges {
+                do {
+                    try taskContext.save()
+                } catch {
+                    print("Error: \(error)\nCould not save Core Data context.")
+                }
+                taskContext.reset() // Reset the context to clean up the cache and low the memory footprint.
             }
-            taskContext.reset() // Reset the context to clean up the cache and low the memory footprint.
         }
+        
     }
     
     func searchUser(keyword: String, taskContext: NSManagedObjectContext, completion: @escaping(_ users: [User]?) -> Void) {
         let request = NSFetchRequest<CDUser>(entityName: "CDUser")
-        request.predicate = NSPredicate(format: "login contains[c] %@", keyword)
+        request.predicate = NSPredicate(format: "login contains[c] %@ OR notes contains[c] %@", keyword, keyword)
         request.returnsObjectsAsFaults = false
         do {
             let result = try taskContext.fetch(request)

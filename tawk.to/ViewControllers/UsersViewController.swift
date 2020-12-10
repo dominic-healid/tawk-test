@@ -43,7 +43,7 @@ class UsersViewController: UIViewController {
         return search
     }()
     
-    private let dispatchGroup = DispatchGroup()
+    private let serialQueue = DispatchQueue(label: "serial.queue")
     
     var viewModel: UsersViewModel!
     var isSearching = false
@@ -129,7 +129,7 @@ extension UsersViewController: UITableViewDataSource, UITableViewDelegate, Paged
         let cell = tableView.dequeueReusableCell(withIdentifier: String(describing: UserCell.self), for: indexPath) as! UserCell
         let user = viewModel.users[indexPath.row]
         cell.userProtocol = self.viewModel
-        cell.configure(user, indexPath, dispatchGroup)
+        cell.configure(user, indexPath, serialQueue)
         return cell
     }
     
@@ -180,6 +180,7 @@ extension UsersViewController: UISearchBarDelegate {
     func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
         isSearching = false
         searchBar.resignFirstResponder()
+        viewModel.resetUsers()
         viewModel.fetchUsers()
     }
 }

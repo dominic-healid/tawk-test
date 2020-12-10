@@ -56,6 +56,7 @@ class ProfileViewController: UIViewController {
         label.text = "followers"
         label.numberOfLines = 0
         label.textAlignment = .center
+        label.textColor = UIColor(named: "blackWhite")
         return label
     }()
     
@@ -64,6 +65,7 @@ class ProfileViewController: UIViewController {
         label.text = "following"
         label.numberOfLines = 0
         label.textAlignment = .center
+        label.textColor = UIColor(named: "blackWhite")
         return label
     }()
     
@@ -77,7 +79,7 @@ class ProfileViewController: UIViewController {
         view.layer.borderWidth = 1
         view.layer.borderColor = UIColor.black.cgColor
         view.layer.cornerRadius = 5
-        
+        view.backgroundColor = .lightGray
         userDetailsView.addSubview(view)
         return view
     }()
@@ -85,7 +87,7 @@ class ProfileViewController: UIViewController {
     private lazy var nameLabel: UILabel = {
         let label = UILabel()
         label.text = "Name:"
-        
+        label.textColor = UIColor(named: "tawkWhite")
         userDetailsView.addSubview(label)
         return label
     }()
@@ -93,7 +95,7 @@ class ProfileViewController: UIViewController {
     private lazy var name: UILabel = {
         let label = UILabel()
         label.text = "Name"
-        
+        label.textColor = UIColor(named: "tawkWhite")
         userDetailsView.addSubview(label)
         return label
     }()
@@ -101,7 +103,7 @@ class ProfileViewController: UIViewController {
     private lazy var companyLabel: UILabel = {
         let label = UILabel()
         label.text = "Company:"
-        
+        label.textColor = UIColor(named: "tawkWhite")
         userDetailsView.addSubview(label)
         return label
     }()
@@ -110,6 +112,7 @@ class ProfileViewController: UIViewController {
         let label = UILabel()
         label.text = "Name"
         label.numberOfLines = 0
+        label.textColor = UIColor(named: "tawkWhite")
         userDetailsView.addSubview(label)
         return label
     }()
@@ -117,7 +120,7 @@ class ProfileViewController: UIViewController {
     private lazy var blogLabel: UILabel = {
         let label = UILabel()
         label.text = "Blog:"
-        
+        label.textColor = UIColor(named: "tawkWhite")
         userDetailsView.addSubview(label)
         return label
     }()
@@ -126,6 +129,7 @@ class ProfileViewController: UIViewController {
         let label = UILabel()
         label.text = "Name"
         label.numberOfLines = 0
+        label.textColor = UIColor(named: "tawkWhite")
         userDetailsView.addSubview(label)
         return label
     }()
@@ -138,7 +142,7 @@ class ProfileViewController: UIViewController {
     private lazy var notesLabel: UILabel = {
         let label = UILabel()
         label.text = "Notes"
-        
+        label.textColor = UIColor(named: "blackWhite")
         notesView.addSubview(label)
         return label
     }()
@@ -149,7 +153,8 @@ class ProfileViewController: UIViewController {
         textView.layer.borderColor = UIColor.black.cgColor
         textView.layer.borderWidth = 1
         textView.layer.cornerRadius = 10
-        
+        textView.backgroundColor = .lightGray
+        textView.textColor = UIColor(named: "tawkWhite")
         notesView.addSubview(textView)
         return textView
     }()
@@ -165,7 +170,7 @@ class ProfileViewController: UIViewController {
         button.layer.borderWidth = 1
         button.layer.cornerRadius = 10
         button.backgroundColor = .lightGray
-        button.setTitleColor(.white, for: .normal)
+        button.setTitleColor(UIColor(named: "tawkWhite"), for: .normal)
         button.setTitle("Save", for: .normal)
         button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 17)
         button.addTarget(self, action: #selector(self.saveUser), for: .touchUpInside)
@@ -178,7 +183,7 @@ class ProfileViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         self.view.addSubview(scrollView)
-        self.view.backgroundColor = .white
+        self.view.backgroundColor = UIColor(named: "tawkWhite")
         setupLayout()
         handleViewModelResult()
         self.viewModel?.fetchUserDetails()
